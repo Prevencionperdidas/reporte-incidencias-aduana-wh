@@ -263,7 +263,7 @@ function renderHistory(){
 // ============ SINCRONIZACIÓN (JSONP GET / no-cors POST) ============
 function trySync(){
   const queue = getQueue();
-  if(queue.length === 0 || GAS_URL.includes("PON_AQUI")) return;
+  if(queue.length === 0 || GAS_URL.includes("https://script.google.com/macros/s/AKfycbwtDxgj1A4P_jZSD_Q0xvfGOX0I86sPJxINxwF45_KXlj1t98jcEFcNzvwOdnKfCps/exec")) return;
 
   const pending = [...queue];
   pending.forEach(rec=>{
