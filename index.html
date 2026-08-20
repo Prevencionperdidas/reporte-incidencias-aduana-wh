@@ -1,0 +1,372 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Panel Incidencias Aduana - PPS IKEA</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<style>
+  :root{
+    --ikea-blue:#0058A3;
+    --ikea-blue-dark:#003D73;
+    --ikea-yellow:#FFDA1A;
+    --ok:#2E7D32;
+    --warn:#E67E00;
+    --err:#C62828;
+    --bg:#F2F2F2;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0;font-family:'Noto Sans',Arial,sans-serif;background:var(--bg);color:#111;}
+  header{background:var(--ikea-blue);color:#fff;padding:16px 24px;display:flex;align-items:center;gap:12px;}
+  header .logo{background:var(--ikea-yellow);color:var(--ikea-blue-dark);font-weight:800;padding:5px 10px;border-radius:4px;}
+  header h1{font-size:18px;margin:0;font-weight:700;}
+  header .status{margin-left:auto;font-size:12px;background:rgba(255,255,255,.15);padding:5px 10px;border-radius:12px;}
+
+  .wrap{max-width:1300px;margin:0 auto;padding:20px;}
+
+  .stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px;margin-bottom:20px;}
+  .stat-card{background:#fff;border-radius:10px;padding:16px;box-shadow:0 1px 3px rgba(0,0,0,.08);}
+  .stat-card .num{font-size:26px;font-weight:800;color:var(--ikea-blue);}
+  .stat-card .lbl{font-size:12px;color:#777;text-transform:uppercase;letter-spacing:.3px;}
+
+  .panel{background:#fff;border-radius:10px;padding:16px;box-shadow:0 1px 3px rgba(0,0,0,.08);margin-bottom:20px;}
+  .filters{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px;}
+  .filters input, .filters select{padding:8px 10px;border:1px solid #ccc;border-radius:6px;font-size:13px;}
+  .filters input[type=text]{flex:1;min-width:180px;}
+
+  table{width:100%;border-collapse:collapse;font-size:13px;}
+  th{text-align:left;background:#f7f7f7;padding:8px;position:sticky;top:0;color:#555;font-size:11px;text-transform:uppercase;}
+  td{padding:8px;border-bottom:1px solid #eee;}
+  tr:hover{background:#fafafa;}
+  .table-wrap{max-height:520px;overflow:auto;border:1px solid #eee;border-radius:8px;}
+
+  .badge{display:inline-block;font-size:11px;font-weight:700;padding:3px 8px;border-radius:10px;}
+  .badge-err{background:#FCE4E4;color:var(--err);}
+
+  .btn{padding:8px 14px;border:none;border-radius:6px;font-size:13px;font-weight:700;cursor:pointer;}
+  .btn-primary{background:var(--ikea-blue);color:#fff;}
+  .btn-secondary{background:#eee;color:#333;}
+  .btn-yellow{background:var(--ikea-yellow);color:var(--ikea-blue-dark);}
+
+  .chart-row{display:grid;grid-template-columns:1.3fr 1fr;gap:16px;margin-bottom:20px;}
+  .chart-box{background:#fff;border-radius:10px;padding:16px;box-shadow:0 1px 3px rgba(0,0,0,.08);}
+  .chart-box h3{margin:0 0 10px 0;font-size:14px;color:var(--ikea-blue-dark);}
+
+  .pin-modal{position:fixed;inset:0;background:rgba(0,0,0,.5);display:none;align-items:center;justify-content:center;z-index:100;}
+  .pin-modal.show{display:flex;}
+  .pin-box{background:#fff;border-radius:10px;padding:20px;width:280px;text-align:center;}
+
+  @media (max-width:900px){.chart-row{grid-template-columns:1fr;}}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">PPS</div>
+  <h1>Panel Reporte Incidencias Aduana</h1>
+  <div class="status" id="lastUpdate">Cargando...</div>
+</header>
+
+<div class="wrap">
+
+  <div class="stats">
+    <div class="stat-card"><div class="num" id="statTotal">0</div><div class="lbl">Incidencias totales</div></div>
+    <div class="stat-card"><div class="num" id="statCajas">0</div><div class="lbl">Cartones (OLPN) únicos</div></div>
+    <div class="stat-card"><div class="num" id="statCantidad">0</div><div class="lbl">Unidades afectadas</div></div>
+    <div class="stat-card"><div class="num" id="statHoy">0</div><div class="lbl">Registradas hoy</div></div>
+  </div>
+
+  <div class="chart-row">
+    <div class="chart-box">
+      <h3>Incidencias por tipo de error</h3>
+      <canvas id="chartTipo" height="220"></canvas>
+    </div>
+    <div class="chart-box">
+      <h3>Incidencias por día (últimos 14 días)</h3>
+      <canvas id="chartDia" height="220"></canvas>
+    </div>
+  </div>
+
+  <div class="panel">
+    <div class="filters">
+      <input type="text" id="fSearch" placeholder="Buscar por OLPN, SKU, DO, ISO...">
+      <select id="fTipoError"><option value="">Todos los tipos de error</option></select>
+      <select id="fVeh"><option value="">Todos los VEH</option></select>
+      <select id="fTurno">
+        <option value="">Todos los turnos</option>
+        <option value="MAÑANA">Mañana</option>
+        <option value="TARDE">Tarde</option>
+        <option value="NOCHE">Noche</option>
+      </select>
+      <input type="date" id="fFecha">
+      <button class="btn btn-secondary" id="btnClearFilters">Limpiar filtros</button>
+      <button class="btn btn-primary" id="btnRefresh">Actualizar</button>
+      <button class="btn btn-yellow" id="btnExport">Exportar CSV</button>
+    </div>
+
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Fecha/Hora</th><th>OLPN</th><th>VEH</th><th>Tipo de error</th><th>SKU</th><th>Cant.</th><th>Turno</th><th>Estado</th>
+          </tr>
+        </thead>
+        <tbody id="tbody"><tr><td colspan="8" style="text-align:center;color:#999;">Cargando datos...</td></tr></tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="panel">
+    <button class="btn btn-secondary" id="btnDeleteMode">Modo eliminación (PIN)</button>
+  </div>
+
+</div>
+
+<div class="pin-modal" id="pinModal">
+  <div class="pin-box">
+    <h3 style="margin-top:0;">Ingresa PIN</h3>
+    <input type="password" id="pinInput" inputmode="numeric" maxlength="6" style="width:100%;padding:10px;font-size:18px;text-align:center;letter-spacing:4px;border:1px solid #ccc;border-radius:6px;">
+    <div style="margin-top:12px;display:flex;gap:8px;">
+      <button class="btn btn-primary" id="pinConfirm" style="flex:1;">Confirmar</button>
+      <button class="btn btn-secondary" id="pinCancel" style="flex:1;">Cancelar</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ============ CONFIG ============
+const ADMIN_PIN = "358097";
+// Reemplaza por la URL de tu Web App de Apps Script una vez desplegada
+const GAS_URL = "https://script.google.com/macros/s/PON_AQUI_TU_DEPLOY_ID/exec";
+
+const TIPOS_ERROR = [
+  "CAJA DAÑADA","CAJA MÁSTER","CARTÓN DAÑADO","CARTÓN MAL PEGADO","CARTONES SIN PEGAR",
+  "ESTIVA INCORRECTA","LPN ENVIADO","LPN IMPRESO","LPN INVERTIDO","LPN NO CORRESPONDE",
+  "PALLET MEZCLADO","PRODUCTO DAÑADO","PRODUCTO FALTANTE","PRODUCTO SOBRANTE"
+];
+
+let allRecords = [];
+let deleteMode = false;
+let chartTipo, chartDia;
+
+// ============ CARGA DE DATOS (JSONP) ============
+function loadData(){
+  document.getElementById('lastUpdate').textContent = "Sincronizando...";
+  if(GAS_URL.includes("PON_AQUI")){
+    document.getElementById('lastUpdate').textContent = "Backend no configurado";
+    document.getElementById('tbody').innerHTML = '<tr><td colspan="8" style="text-align:center;color:#999;">Configura GAS_URL en el código para conectar con Google Sheets.</td></tr>';
+    return;
+  }
+  const cbName = 'incCb_' + Date.now();
+  window[cbName] = function(data){
+    allRecords = data.records || [];
+    populateFilters();
+    applyFilters();
+    document.getElementById('lastUpdate').textContent = "Actualizado " + new Date().toLocaleTimeString('es-CL');
+    delete window[cbName];
+    script.remove();
+  };
+  const script = document.createElement('script');
+  script.src = GAS_URL + '?action=list&callback=' + cbName;
+  script.onerror = ()=>{ document.getElementById('lastUpdate').textContent = "Error de conexión"; };
+  document.body.appendChild(script);
+}
+
+// ============ FILTROS ============
+function populateFilters(){
+  const selVeh = document.getElementById('fVeh');
+  const curVeh = selVeh.value;
+  const vehs = [...new Set(allRecords.map(r=>r.VEH).filter(Boolean))].sort();
+  selVeh.innerHTML = '<option value="">Todos los VEH</option>' + vehs.map(v=>`<option value="${v}">VEH ${v}</option>`).join('');
+  selVeh.value = curVeh;
+
+  const selTipo = document.getElementById('fTipoError');
+  const curTipo = selTipo.value;
+  selTipo.innerHTML = '<option value="">Todos los tipos de error</option>' + TIPOS_ERROR.map(t=>`<option value="${t}">${t}</option>`).join('');
+  selTipo.value = curTipo;
+}
+
+function applyFilters(){
+  const search = document.getElementById('fSearch').value.trim().toUpperCase();
+  const tipoError = document.getElementById('fTipoError').value;
+  const veh = document.getElementById('fVeh').value;
+  const turno = document.getElementById('fTurno').value;
+  const fecha = document.getElementById('fFecha').value;
+
+  let filtered = allRecords.filter(r=>{
+    if(search){
+      const hay = ['OLPN','OLA','DO','ISO','sku'].some(k => (r[k]||'').toString().toUpperCase().includes(search));
+      if(!hay) return false;
+    }
+    if(tipoError && r.tipoError !== tipoError) return false;
+    if(veh && r.VEH !== veh) return false;
+    if(turno && r.turno !== turno) return false;
+    if(fecha){
+      const d = new Date(r.timestamp).toISOString().slice(0,10);
+      if(d !== fecha) return false;
+    }
+    return true;
+  });
+
+  renderTable(filtered);
+  renderStats(filtered);
+  renderCharts(filtered);
+}
+
+// ============ TABLA ============
+function renderTable(records){
+  const tbody = document.getElementById('tbody');
+  if(records.length === 0){
+    tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;color:#999;">Sin resultados.</td></tr>';
+    return;
+  }
+
+  tbody.innerHTML = records.map(r=>{
+    const d = new Date(r.timestamp);
+    const delBtn = deleteMode ? `<button class="btn btn-secondary" style="padding:4px 8px;font-size:11px;" onclick="deleteRecord('${r.id}')">Eliminar</button>` : '';
+    return `<tr>
+      <td>${d.toLocaleString('es-CL')}</td>
+      <td><strong>${r.OLPN||'-'}</strong></td>
+      <td>${r.VEH||'-'}</td>
+      <td><span class="badge badge-err">${r.tipoError||'-'}</span></td>
+      <td>${r.sku||'-'}</td>
+      <td>${r.cantidad||'-'}</td>
+      <td>${r.turno||'-'}</td>
+      <td>${delBtn}</td>
+    </tr>`;
+  }).join('');
+}
+
+// ============ ESTADÍSTICAS ============
+function renderStats(records){
+  document.getElementById('statTotal').textContent = records.length;
+  document.getElementById('statCajas').textContent = new Set(records.map(r=>r.OLPN).filter(Boolean)).size;
+  document.getElementById('statCantidad').textContent = records.reduce((sum,r)=>sum + (Number(r.cantidad)||0), 0);
+
+  const today = new Date().toISOString().slice(0,10);
+  const hoy = records.filter(r => new Date(r.timestamp).toISOString().slice(0,10) === today).length;
+  document.getElementById('statHoy').textContent = hoy;
+}
+
+// ============ GRÁFICOS ============
+function renderCharts(records){
+  const tipoCounts = {};
+  TIPOS_ERROR.forEach(t => tipoCounts[t] = 0);
+  records.forEach(r=>{ if(r.tipoError) tipoCounts[r.tipoError] = (tipoCounts[r.tipoError]||0)+1; });
+  const sortedTipos = Object.entries(tipoCounts).sort((a,b)=>b[1]-a[1]).filter(([,v])=>v>0);
+
+  if(chartTipo) chartTipo.destroy();
+  chartTipo = new Chart(document.getElementById('chartTipo'), {
+    type: 'bar',
+    data: {
+      labels: sortedTipos.map(([k])=>k),
+      datasets: [{ data: sortedTipos.map(([,v])=>v), backgroundColor: '#0058A3' }]
+    },
+    options: {
+      indexAxis: 'y',
+      plugins:{legend:{display:false}},
+      scales:{x:{beginAtZero:true, ticks:{precision:0}}}
+    }
+  });
+
+  const dayCounts = {};
+  const now = new Date();
+  for(let i=13;i>=0;i--){
+    const d = new Date(now); d.setDate(d.getDate()-i);
+    dayCounts[d.toISOString().slice(0,10)] = 0;
+  }
+  records.forEach(r=>{
+    const d = new Date(r.timestamp).toISOString().slice(0,10);
+    if(d in dayCounts) dayCounts[d]++;
+  });
+  const dayLabels = Object.keys(dayCounts).map(d=>d.slice(5));
+  const dayData = Object.values(dayCounts);
+
+  if(chartDia) chartDia.destroy();
+  chartDia = new Chart(document.getElementById('chartDia'), {
+    type: 'line',
+    data: { labels: dayLabels, datasets: [{ data: dayData, borderColor: '#FFDA1A', backgroundColor:'rgba(255,218,26,.3)', fill:true, tension:.3 }] },
+    options: { plugins:{legend:{display:false}}, scales:{y:{beginAtZero:true, ticks:{precision:0}}} }
+  });
+}
+
+// ============ EXPORTAR CSV ============
+function exportCSV(){
+  if(allRecords.length===0){ alert("No hay registros para exportar"); return; }
+  const headers = ["OLPN","OLA","DO","VEH","ISO","tipoError","sku","cantidad","turno","timestamp"];
+  const rows = allRecords.map(r => headers.map(h => `"${(r[h]??'').toString().replace(/"/g,'""')}"`).join(","));
+  const csv = headers.join(",") + "\n" + rows.join("\n");
+  const blob = new Blob([csv], {type:'text/csv;charset=utf-8;'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `panel_incidencias_aduana_${new Date().toISOString().slice(0,10)}.csv`;
+  a.click();
+}
+
+// ============ ELIMINACIÓN CON PIN ============
+function toggleDeleteMode(){
+  if(!deleteMode){
+    askPin();
+  } else {
+    deleteMode = false;
+    document.getElementById('btnDeleteMode').textContent = 'Modo eliminación (PIN)';
+    applyFilters();
+  }
+}
+
+function askPin(){
+  document.getElementById('pinInput').value = '';
+  document.getElementById('pinModal').classList.add('show');
+}
+
+function confirmPin(){
+  const val = document.getElementById('pinInput').value;
+  document.getElementById('pinModal').classList.remove('show');
+  if(val === ADMIN_PIN){
+    deleteMode = true;
+    document.getElementById('btnDeleteMode').textContent = 'Salir de modo eliminación';
+    applyFilters();
+  } else {
+    alert("PIN incorrecto");
+  }
+}
+
+function deleteRecord(id){
+  if(!confirm("¿Eliminar esta incidencia? Esta acción no se puede deshacer.")) return;
+  fetch(GAS_URL, {
+    method: 'POST',
+    mode: 'no-cors',
+    headers: {'Content-Type':'text/plain'},
+    body: JSON.stringify({action:'delete', id})
+  }).then(()=>{
+    setTimeout(loadData, 1000);
+  });
+}
+
+// ============ EVENTOS ============
+document.getElementById('fSearch').addEventListener('input', applyFilters);
+document.getElementById('fTipoError').addEventListener('change', applyFilters);
+document.getElementById('fVeh').addEventListener('change', applyFilters);
+document.getElementById('fTurno').addEventListener('change', applyFilters);
+document.getElementById('fFecha').addEventListener('change', applyFilters);
+document.getElementById('btnClearFilters').addEventListener('click', ()=>{
+  document.getElementById('fSearch').value = '';
+  document.getElementById('fTipoError').value = '';
+  document.getElementById('fVeh').value = '';
+  document.getElementById('fTurno').value = '';
+  document.getElementById('fFecha').value = '';
+  applyFilters();
+});
+document.getElementById('btnRefresh').addEventListener('click', loadData);
+document.getElementById('btnExport').addEventListener('click', exportCSV);
+document.getElementById('btnDeleteMode').addEventListener('click', toggleDeleteMode);
+document.getElementById('pinConfirm').addEventListener('click', confirmPin);
+document.getElementById('pinCancel').addEventListener('click', ()=>document.getElementById('pinModal').classList.remove('show'));
+
+// ============ INIT ============
+loadData();
+setInterval(loadData, 60000);
+</script>
+</body>
+</html>
