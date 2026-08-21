@@ -157,7 +157,7 @@ let chartTipo, chartDia;
 // ============ CARGA DE DATOS (JSONP) ============
 function loadData(){
   document.getElementById('lastUpdate').textContent = "Sincronizando...";
-  if(GAS_URL.includes("https://script.google.com/macros/s/AKfycbwtDxgj1A4P_jZSD_Q0xvfGOX0I86sPJxINxwF45_KXlj1t98jcEFcNzvwOdnKfCps/exec")){
+  if(GAS_URL.includes(PON_AQUI")){
     document.getElementById('lastUpdate').textContent = "Backend no configurado";
     document.getElementById('tbody').innerHTML = '<tr><td colspan="7" style="text-align:center;color:#999;">Configura GAS_URL en el código para conectar con Google Sheets.</td></tr>';
     return;
