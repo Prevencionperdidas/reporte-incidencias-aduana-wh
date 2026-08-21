@@ -142,7 +142,7 @@
 // ============ CONFIG ============
 const ADMIN_PIN = "358097";
 // Reemplaza por la URL de tu Web App de Apps Script una vez desplegada
-const GAS_URL = "https://script.google.com/macros/s/PON_AQUI_TU_DEPLOY_ID/exec";
+const GAS_URL = "https://script.google.com/macros/s/AKfycbwtDxgj1A4P_jZSD_Q0xvfGOX0I86sPJxINxwF45_KXlj1t98jcEFcNzvwOdnKfCps/execc";
 
 const TIPOS_ERROR = [
   "CAJA DAÑADA","CAJA MÁSTER","CARTÓN DAÑADO","CARTÓN MAL PEGADO","CARTONES SIN PEGAR",
@@ -157,7 +157,7 @@ let chartTipo, chartDia;
 // ============ CARGA DE DATOS (JSONP) ============
 function loadData(){
   document.getElementById('lastUpdate').textContent = "Sincronizando...";
-  if(GAS_URL.includes("PON_AQUI")){
+  if(GAS_URL.includes("https://script.google.com/macros/s/AKfycbwtDxgj1A4P_jZSD_Q0xvfGOX0I86sPJxINxwF45_KXlj1t98jcEFcNzvwOdnKfCps/exec")){
     document.getElementById('lastUpdate').textContent = "Backend no configurado";
     document.getElementById('tbody').innerHTML = '<tr><td colspan="7" style="text-align:center;color:#999;">Configura GAS_URL en el código para conectar con Google Sheets.</td></tr>';
     return;
