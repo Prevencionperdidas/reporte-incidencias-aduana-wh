@@ -127,7 +127,7 @@
 <script>
 // ============ CONFIG ============
 // Usa la MISMA URL de Web App que ya tienes configurada en panel_incidencias_aduana.html
-const GAS_URL = "https://script.google.com/macros/s/PON_AQUI_TU_DEPLOY_ID/exec";
+const GAS_URL = "https://script.google.com/macros/s/AKfycbwtDxgj1A4P_jZSD_Q0xvfGOX0I86sPJxINxwF45_KXlj1t98jcEFcNzvwOdnKfCps/exec";
 
 const TIPOS_ERROR = [
   "CAJA DAÑADA","CAJA MÁSTER","CARTÓN DAÑADO","CARTÓN MAL PEGADO","CARTONES SIN PEGAR",
@@ -141,7 +141,7 @@ let chartPacker, chartTipo;
 // ============ CARGA DE DATOS (JSONP, acción "resumen") ============
 function loadData(){
   document.getElementById('lastUpdate').textContent = "Sincronizando...";
-  if(GAS_URL.includes("PON_AQUI")){
+  if(GAS_URL.includes("https://script.google.com/macros/s/AKfycbwtDxgj1A4P_jZSD_Q0xvfGOX0I86sPJxINxwF45_KXlj1t98jcEFcNzvwOdnKfCps/exec")){
     document.getElementById('lastUpdate').textContent = "Backend no configurado";
     document.getElementById('tbody').innerHTML = '<tr><td colspan="7" style="text-align:center;color:#999;">Configura GAS_URL en el código para conectar con Google Sheets.</td></tr>';
     return;
