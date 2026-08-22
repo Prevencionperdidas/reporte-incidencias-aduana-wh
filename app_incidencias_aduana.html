@@ -54,9 +54,6 @@
   .hist-sub{font-size:12px;color:#777;margin-top:2px;}
   .hist-error{font-size:12px;color:var(--err);font-weight:700;margin-top:2px;}
 
-  .pin-modal{position:fixed;inset:0;background:rgba(0,0,0,.5);display:none;align-items:center;justify-content:center;z-index:100;}
-  .pin-modal.show{display:flex;}
-  .pin-box{background:#fff;border-radius:10px;padding:20px;width:280px;}
   .toast{position:fixed;top:70px;left:50%;transform:translateX(-50%);background:#222;color:#fff;padding:10px 16px;border-radius:8px;font-size:13px;z-index:200;opacity:0;transition:opacity .3s;pointer-events:none;max-width:90%;text-align:center;}
   .toast.show{opacity:1;}
 </style>
@@ -117,30 +114,14 @@
     <div id="histList"><div style="color:#999;font-size:13px;">Sin registros aún.</div></div>
   </div>
 
-  <div class="card">
-    <h2>Administración</h2>
-    <button class="btn btn-secondary" id="btnExport">Exportar CSV local</button>
-    <button class="btn btn-secondary" id="btnClear">Borrar historial local (PIN)</button>
-  </div>
-
-</div>
-
-<div class="pin-modal" id="pinModal">
-  <div class="pin-box">
-    <h3 style="margin-top:0;">Ingresa PIN</h3>
-    <input type="password" id="pinInput" inputmode="numeric" maxlength="6" style="width:100%;padding:10px;font-size:18px;text-align:center;letter-spacing:4px;border:1px solid #ccc;border-radius:6px;">
-    <button class="btn btn-primary" id="pinConfirm">Confirmar</button>
-    <button class="btn btn-secondary" id="pinCancel">Cancelar</button>
-  </div>
 </div>
 
 <div class="toast" id="toast"></div>
 
 <script>
 // ============ CONFIG ============
-const ADMIN_PIN = "358097";
 // Reemplaza esta URL por la de tu Web App de Apps Script una vez desplegada
-const GAS_URL = "https://script.google.com/macros/s/PON_AQUI_TU_DEPLOY_ID/exec";
+const GAS_URL = "https://script.google.com/macros/s/AKfycbwtDxgj1A4P_jZSD_Q0xvfGOX0I86sPJxINxwF45_KXlj1t98jcEFcNzvwOdnKfCps/exec";
 const STORAGE_KEY = "incidencias_aduana_v2";
 const QUEUE_KEY = "incidencias_aduana_queue_v2";
 
@@ -302,50 +283,9 @@ function markSynced(id){
 setInterval(trySync, 20000);
 window.addEventListener('online', trySync);
 
-// ============ EXPORTAR / BORRAR (PIN) ============
-function exportCSV(){
-  const records = getRecords();
-  if(records.length===0){ toast("No hay registros para exportar"); return; }
-  const headers = ["OLPN","tipoError","sku","cantidad","turno","timestamp","synced"];
-  const rows = records.map(r => headers.map(h => `"${(r[h]??'').toString().replace(/"/g,'""')}"`).join(","));
-  const csv = headers.join(",") + "\n" + rows.join("\n");
-  const blob = new Blob([csv], {type:'text/csv;charset=utf-8;'});
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = `incidencias_aduana_${new Date().toISOString().slice(0,10)}.csv`;
-  a.click();
-}
-
-let pinAction = null;
-function askPin(action){
-  pinAction = action;
-  document.getElementById('pinInput').value = '';
-  document.getElementById('pinModal').classList.add('show');
-}
-function confirmPin(){
-  const val = document.getElementById('pinInput').value;
-  document.getElementById('pinModal').classList.remove('show');
-  if(val !== ADMIN_PIN){
-    toast("PIN incorrecto");
-    return;
-  }
-  if(pinAction === 'clear'){
-    localStorage.removeItem(STORAGE_KEY);
-    localStorage.removeItem(QUEUE_KEY);
-    renderHistory();
-    updateSyncBadge();
-    toast("Historial local borrado");
-  }
-}
-
 // ============ EVENTOS ============
 document.getElementById('btnSave').addEventListener('click', saveRecord);
 document.getElementById('btnClearForm').addEventListener('click', clearForm);
-document.getElementById('btnExport').addEventListener('click', exportCSV);
-document.getElementById('btnClear').addEventListener('click', ()=>askPin('clear'));
-document.getElementById('pinConfirm').addEventListener('click', confirmPin);
-document.getElementById('pinCancel').addEventListener('click', ()=>document.getElementById('pinModal').classList.remove('show'));
 
 // ============ INIT ============
 renderHistory();
