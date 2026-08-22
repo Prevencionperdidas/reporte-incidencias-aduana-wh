@@ -80,6 +80,8 @@
     <div class="stat-card"><div class="num" id="statConPacker">0</div><div class="lbl">Con packer identificado</div></div>
     <div class="stat-card warn"><div class="num" id="statSinPacker">0</div><div class="lbl">Sin match en Auditado</div></div>
     <div class="stat-card"><div class="num" id="statPackers">0</div><div class="lbl">Packers distintos involucrados</div></div>
+    <div class="stat-card"><div class="num" id="statAduana">0</div><div class="lbl">Desde Aduana</div></div>
+    <div class="stat-card"><div class="num" id="statAndenes">0</div><div class="lbl">Desde Andenes</div></div>
   </div>
 
   <div class="chart-row">
@@ -104,6 +106,11 @@
         <option value="TARDE">Tarde</option>
         <option value="NOCHE">Noche</option>
       </select>
+      <select id="fArea">
+        <option value="">Todas las áreas</option>
+        <option value="ADUANA">Aduana</option>
+        <option value="ANDENES">Andenes</option>
+      </select>
       <input type="date" id="fFecha">
       <button class="btn btn-secondary" id="btnClearFilters">Limpiar filtros</button>
       <button class="btn btn-primary" id="btnRefresh">Actualizar</button>
@@ -114,10 +121,10 @@
       <table>
         <thead>
           <tr>
-            <th>Fecha/Hora</th><th>OLPN</th><th>Tipo de error</th><th>SKU</th><th>Cant.</th><th>Turno</th><th>Packer</th>
+            <th>Fecha/Hora</th><th>OLPN</th><th>Tipo de error</th><th>SKU</th><th>Cant.</th><th>Turno</th><th>Área</th><th>Packer</th>
           </tr>
         </thead>
-        <tbody id="tbody"><tr><td colspan="7" style="text-align:center;color:#999;">Cargando datos...</td></tr></tbody>
+        <tbody id="tbody"><tr><td colspan="8" style="text-align:center;color:#999;">Cargando datos...</td></tr></tbody>
       </table>
     </div>
   </div>
@@ -127,7 +134,7 @@
 <script>
 // ============ CONFIG ============
 // Usa la MISMA URL de Web App que ya tienes configurada en panel_incidencias_aduana.html
-const GAS_URL = "https://script.google.com/macros/s/AKfycbwtDxgj1A4P_jZSD_Q0xvfGOX0I86sPJxINxwF45_KXlj1t98jcEFcNzvwOdnKfCps/exec";
+const GAS_URL = "https://script.google.com/macros/s/PON_AQUI_TU_DEPLOY_ID/exec";
 
 const TIPOS_ERROR = [
   "CAJA DAÑADA","CAJA MÁSTER","CARTÓN DAÑADO","CARTÓN MAL PEGADO","CARTONES SIN PEGAR",
@@ -143,7 +150,7 @@ function loadData(){
   document.getElementById('lastUpdate').textContent = "Sincronizando...";
   if(GAS_URL.includes("PON_AQUI")){
     document.getElementById('lastUpdate').textContent = "Backend no configurado";
-    document.getElementById('tbody').innerHTML = '<tr><td colspan="7" style="text-align:center;color:#999;">Configura GAS_URL en el código para conectar con Google Sheets.</td></tr>';
+    document.getElementById('tbody').innerHTML = '<tr><td colspan="8" style="text-align:center;color:#999;">Configura GAS_URL en el código para conectar con Google Sheets.</td></tr>';
     return;
   }
   const cbName = 'resCb_' + Date.now();
@@ -180,6 +187,7 @@ function applyFilters(){
   const tipoError = document.getElementById('fTipoError').value;
   const packer = document.getElementById('fPacker').value;
   const turno = document.getElementById('fTurno').value;
+  const area = document.getElementById('fArea').value;
   const fecha = document.getElementById('fFecha').value;
 
   let filtered = allRecords.filter(r=>{
@@ -190,6 +198,7 @@ function applyFilters(){
     if(tipoError && r.tipoError !== tipoError) return false;
     if(packer && r.packer !== packer) return false;
     if(turno && r.turno !== turno) return false;
+    if(area && r.area !== area) return false;
     if(fecha){
       const d = new Date(r.timestamp).toISOString().slice(0,10);
       if(d !== fecha) return false;
@@ -206,7 +215,7 @@ function applyFilters(){
 function renderTable(records){
   const tbody = document.getElementById('tbody');
   if(records.length === 0){
-    tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:#999;">Sin resultados.</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;color:#999;">Sin resultados.</td></tr>';
     return;
   }
 
@@ -215,6 +224,9 @@ function renderTable(records){
     const packerBadge = r.packer
       ? `<span class="badge badge-packer">${r.packer}</span>`
       : `<span class="badge badge-nomatch">Sin match</span>`;
+    const areaBadge = r.area === 'ANDENES'
+      ? `<span class="badge" style="background:#FFF3E0;color:#E67E00;">Andenes</span>`
+      : `<span class="badge" style="background:#E3F2FD;color:#0058A3;">Aduana</span>`;
     return `<tr>
       <td>${d.toLocaleString('es-CL')}</td>
       <td><strong>${r.OLPN||'-'}</strong></td>
@@ -222,6 +234,7 @@ function renderTable(records){
       <td>${r.sku||'-'}</td>
       <td>${r.cantidad||'-'}</td>
       <td>${r.turno||'-'}</td>
+      <td>${areaBadge}</td>
       <td>${packerBadge}</td>
     </tr>`;
   }).join('');
@@ -234,6 +247,8 @@ function renderStats(records){
   document.getElementById('statConPacker').textContent = conPacker;
   document.getElementById('statSinPacker').textContent = records.length - conPacker;
   document.getElementById('statPackers').textContent = new Set(records.map(r=>r.packer).filter(Boolean)).size;
+  document.getElementById('statAduana').textContent = records.filter(r=>r.area !== 'ANDENES').length;
+  document.getElementById('statAndenes').textContent = records.filter(r=>r.area === 'ANDENES').length;
 }
 
 // ============ GRÁFICOS ============
@@ -279,7 +294,7 @@ function renderCharts(records){
 // ============ EXPORTAR CSV ============
 function exportCSV(){
   if(allRecords.length===0){ alert("No hay registros para exportar"); return; }
-  const headers = ["OLPN","tipoError","sku","cantidad","turno","timestamp","packer"];
+  const headers = ["OLPN","tipoError","sku","cantidad","turno","area","timestamp","packer"];
   const rows = allRecords.map(r => headers.map(h => `"${(r[h]??'').toString().replace(/"/g,'""')}"`).join(","));
   const csv = headers.join(",") + "\n" + rows.join("\n");
   const blob = new Blob([csv], {type:'text/csv;charset=utf-8;'});
@@ -295,12 +310,14 @@ document.getElementById('fSearch').addEventListener('input', applyFilters);
 document.getElementById('fTipoError').addEventListener('change', applyFilters);
 document.getElementById('fPacker').addEventListener('change', applyFilters);
 document.getElementById('fTurno').addEventListener('change', applyFilters);
+document.getElementById('fArea').addEventListener('change', applyFilters);
 document.getElementById('fFecha').addEventListener('change', applyFilters);
 document.getElementById('btnClearFilters').addEventListener('click', ()=>{
   document.getElementById('fSearch').value = '';
   document.getElementById('fTipoError').value = '';
   document.getElementById('fPacker').value = '';
   document.getElementById('fTurno').value = '';
+  document.getElementById('fArea').value = '';
   document.getElementById('fFecha').value = '';
   applyFilters();
 });
