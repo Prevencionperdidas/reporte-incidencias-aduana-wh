@@ -102,6 +102,11 @@
         <option value="TARDE">Tarde</option>
         <option value="NOCHE">Noche</option>
       </select>
+      <select id="fArea">
+        <option value="">Todas las áreas</option>
+        <option value="ADUANA">Aduana</option>
+        <option value="ANDENES">Andenes</option>
+      </select>
       <input type="date" id="fFecha">
       <button class="btn btn-secondary" id="btnClearFilters">Limpiar filtros</button>
       <button class="btn btn-primary" id="btnRefresh">Actualizar</button>
@@ -113,10 +118,10 @@
       <table>
         <thead>
           <tr>
-            <th>Fecha/Hora</th><th>OLPN</th><th>Tipo de error</th><th>SKU</th><th>Cant.</th><th>Turno</th><th>Estado</th>
+            <th>Fecha/Hora</th><th>OLPN</th><th>Tipo de error</th><th>SKU</th><th>Cant.</th><th>Turno</th><th>Área</th><th>Estado</th>
           </tr>
         </thead>
-        <tbody id="tbody"><tr><td colspan="7" style="text-align:center;color:#999;">Cargando datos...</td></tr></tbody>
+        <tbody id="tbody"><tr><td colspan="8" style="text-align:center;color:#999;">Cargando datos...</td></tr></tbody>
       </table>
     </div>
   </div>
@@ -159,7 +164,7 @@ function loadData(){
   document.getElementById('lastUpdate').textContent = "Sincronizando...";
   if(GAS_URL.includes("PON_AQUI")){
     document.getElementById('lastUpdate').textContent = "Backend no configurado";
-    document.getElementById('tbody').innerHTML = '<tr><td colspan="7" style="text-align:center;color:#999;">Configura GAS_URL en el código para conectar con Google Sheets.</td></tr>';
+    document.getElementById('tbody').innerHTML = '<tr><td colspan="8" style="text-align:center;color:#999;">Configura GAS_URL en el código para conectar con Google Sheets.</td></tr>';
     return;
   }
   const cbName = 'incCb_' + Date.now();
@@ -189,6 +194,7 @@ function applyFilters(){
   const search = document.getElementById('fSearch').value.trim().toUpperCase();
   const tipoError = document.getElementById('fTipoError').value;
   const turno = document.getElementById('fTurno').value;
+  const area = document.getElementById('fArea').value;
   const fecha = document.getElementById('fFecha').value;
 
   let filtered = allRecords.filter(r=>{
@@ -198,6 +204,7 @@ function applyFilters(){
     }
     if(tipoError && r.tipoError !== tipoError) return false;
     if(turno && r.turno !== turno) return false;
+    if(area && r.area !== area) return false;
     if(fecha){
       const d = new Date(r.timestamp).toISOString().slice(0,10);
       if(d !== fecha) return false;
@@ -214,13 +221,16 @@ function applyFilters(){
 function renderTable(records){
   const tbody = document.getElementById('tbody');
   if(records.length === 0){
-    tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:#999;">Sin resultados.</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;color:#999;">Sin resultados.</td></tr>';
     return;
   }
 
   tbody.innerHTML = records.map(r=>{
     const d = new Date(r.timestamp);
     const delBtn = deleteMode ? `<button class="btn btn-secondary" style="padding:4px 8px;font-size:11px;" onclick="deleteRecord('${r.id}')">Eliminar</button>` : '';
+    const areaBadge = r.area === 'ANDENES'
+      ? `<span class="badge" style="background:#FFF3E0;color:#E67E00;">Andenes</span>`
+      : `<span class="badge" style="background:#E3F2FD;color:#0058A3;">Aduana</span>`;
     return `<tr>
       <td>${d.toLocaleString('es-CL')}</td>
       <td><strong>${r.OLPN||'-'}</strong></td>
@@ -228,6 +238,7 @@ function renderTable(records){
       <td>${r.sku||'-'}</td>
       <td>${r.cantidad||'-'}</td>
       <td>${r.turno||'-'}</td>
+      <td>${areaBadge}</td>
       <td>${delBtn}</td>
     </tr>`;
   }).join('');
@@ -344,11 +355,13 @@ function deleteRecord(id){
 document.getElementById('fSearch').addEventListener('input', applyFilters);
 document.getElementById('fTipoError').addEventListener('change', applyFilters);
 document.getElementById('fTurno').addEventListener('change', applyFilters);
+document.getElementById('fArea').addEventListener('change', applyFilters);
 document.getElementById('fFecha').addEventListener('change', applyFilters);
 document.getElementById('btnClearFilters').addEventListener('click', ()=>{
   document.getElementById('fSearch').value = '';
   document.getElementById('fTipoError').value = '';
   document.getElementById('fTurno').value = '';
+  document.getElementById('fArea').value = '';
   document.getElementById('fFecha').value = '';
   applyFilters();
 });
