@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Resumen de Incidencia - PPS IKEA</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
 <style>
   :root{
     --ikea-blue:#0058A3;
@@ -86,7 +87,7 @@
 
   <div class="chart-row">
     <div class="chart-box">
-      <h3>Incidencias por packer (top 15)</h3>
+      <h3>Incidencias por packer (top 15) <span style="font-weight:400;font-size:11px;color:#999;">— toca una barra para filtrar</span></h3>
       <canvas id="chartPacker" height="220"></canvas>
     </div>
     <div class="chart-box">
@@ -260,14 +261,32 @@ function renderCharts(records){
   if(chartPacker) chartPacker.destroy();
   chartPacker = new Chart(document.getElementById('chartPacker'), {
     type: 'bar',
+    plugins: [ChartDataLabels],
     data: {
       labels: sortedPackers.map(([k])=>k),
       datasets: [{ data: sortedPackers.map(([,v])=>v), backgroundColor: '#0058A3' }]
     },
     options: {
       indexAxis: 'y',
-      plugins:{legend:{display:false}},
-      scales:{x:{beginAtZero:true, ticks:{precision:0}}}
+      plugins:{
+        legend:{display:false},
+        datalabels:{
+          anchor:'end', align:'end', color:'#003D73', font:{weight:'700', size:11},
+          formatter: (v)=> v
+        },
+        tooltip:{ callbacks:{ footer: ()=> 'Toca para filtrar por este packer' } }
+      },
+      scales:{x:{beginAtZero:true, ticks:{precision:0}}},
+      onHover: (evt, elements)=>{ evt.native.target.style.cursor = elements.length ? 'pointer' : 'default'; },
+      onClick: (evt, elements)=>{
+        if(!elements.length) return;
+        const packer = sortedPackers[elements[0].index][0];
+        const selPacker = document.getElementById('fPacker');
+        // Si ya estaba filtrado por ese mismo packer, un segundo clic quita el filtro
+        selPacker.value = (selPacker.value === packer) ? '' : packer;
+        applyFilters();
+        document.querySelector('.table-wrap').scrollIntoView({behavior:'smooth', block:'nearest'});
+      }
     }
   });
 
@@ -279,13 +298,20 @@ function renderCharts(records){
   if(chartTipo) chartTipo.destroy();
   chartTipo = new Chart(document.getElementById('chartTipo'), {
     type: 'bar',
+    plugins: [ChartDataLabels],
     data: {
       labels: sortedTipos.map(([k])=>k),
       datasets: [{ data: sortedTipos.map(([,v])=>v), backgroundColor: '#FFDA1A' }]
     },
     options: {
       indexAxis: 'y',
-      plugins:{legend:{display:false}},
+      plugins:{
+        legend:{display:false},
+        datalabels:{
+          anchor:'end', align:'end', color:'#8a6d00', font:{weight:'700', size:11},
+          formatter: (v)=> v
+        }
+      },
       scales:{x:{beginAtZero:true, ticks:{precision:0}}}
     }
   });
