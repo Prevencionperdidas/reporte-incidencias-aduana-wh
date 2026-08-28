@@ -112,7 +112,8 @@
         <option value="ADUANA">Aduana</option>
         <option value="ANDENES">Andenes</option>
       </select>
-      <input type="date" id="fFecha">
+      <label style="display:flex;align-items:center;gap:6px;font-size:12px;color:#555;">Desde <input type="date" id="fFechaDesde"></label>
+      <label style="display:flex;align-items:center;gap:6px;font-size:12px;color:#555;">Hasta <input type="date" id="fFechaHasta"></label>
       <button class="btn btn-secondary" id="btnClearFilters">Limpiar filtros</button>
       <button class="btn btn-primary" id="btnRefresh">Actualizar</button>
       <button class="btn btn-yellow" id="btnExport">Exportar CSV</button>
@@ -189,7 +190,8 @@ function applyFilters(){
   const packer = document.getElementById('fPacker').value;
   const turno = document.getElementById('fTurno').value;
   const area = document.getElementById('fArea').value;
-  const fecha = document.getElementById('fFecha').value;
+  const fechaDesde = document.getElementById('fFechaDesde').value;
+  const fechaHasta = document.getElementById('fFechaHasta').value;
 
   let filtered = allRecords.filter(r=>{
     if(search){
@@ -200,9 +202,10 @@ function applyFilters(){
     if(packer && r.packer !== packer) return false;
     if(turno && r.turno !== turno) return false;
     if(area && r.area !== area) return false;
-    if(fecha){
+    if(fechaDesde || fechaHasta){
       const d = new Date(r.timestamp).toISOString().slice(0,10);
-      if(d !== fecha) return false;
+      if(fechaDesde && d < fechaDesde) return false;
+      if(fechaHasta && d > fechaHasta) return false;
     }
     return true;
   });
@@ -337,14 +340,16 @@ document.getElementById('fTipoError').addEventListener('change', applyFilters);
 document.getElementById('fPacker').addEventListener('change', applyFilters);
 document.getElementById('fTurno').addEventListener('change', applyFilters);
 document.getElementById('fArea').addEventListener('change', applyFilters);
-document.getElementById('fFecha').addEventListener('change', applyFilters);
+document.getElementById('fFechaDesde').addEventListener('change', applyFilters);
+document.getElementById('fFechaHasta').addEventListener('change', applyFilters);
 document.getElementById('btnClearFilters').addEventListener('click', ()=>{
   document.getElementById('fSearch').value = '';
   document.getElementById('fTipoError').value = '';
   document.getElementById('fPacker').value = '';
   document.getElementById('fTurno').value = '';
   document.getElementById('fArea').value = '';
-  document.getElementById('fFecha').value = '';
+  document.getElementById('fFechaDesde').value = '';
+  document.getElementById('fFechaHasta').value = '';
   applyFilters();
 });
 document.getElementById('btnRefresh').addEventListener('click', loadData);
