@@ -138,6 +138,22 @@
 // Usa la MISMA URL de Web App que ya tienes configurada en panel_incidencias_aduana.html
 const GAS_URL = "https://script.google.com/macros/s/AKfycbwtDxgj1A4P_jZSD_Q0xvfGOX0I86sPJxINxwF45_KXlj1t98jcEFcNzvwOdnKfCps/exec";
 
+// ============ FECHAS (hora de Chile) ============
+const TZ = 'America/Santiago';
+// Fecha yyyy-mm-dd de una incidencia. Usa "fechaFiltro" que entrega el backend;
+// si no viene, la calcula del timestamp. Si no hay forma, devuelve '' (sin romper nada).
+function fechaDe(r){
+  if(r && /^\d{4}-\d{2}-\d{2}$/.test(r.fechaFiltro||'')) return r.fechaFiltro;
+  const d = new Date(r && r.timestamp);
+  return isNaN(d.getTime()) ? '' : d.toLocaleDateString('en-CA', {timeZone: TZ});
+}
+function fechaHoy(){ return new Date().toLocaleDateString('en-CA', {timeZone: TZ}); }
+function fechaHoraTxt(r){
+  const d = new Date(r && r.timestamp);
+  if(isNaN(d.getTime())) return fechaDe(r) || '-';
+  return d.toLocaleString('es-CL', {timeZone: TZ});
+}
+
 const TIPOS_ERROR = [
   "CAJA DAÑADA","CAJA MÁSTER","CARTÓN DAÑADO","CARTÓN MAL PEGADO","CARTONES SIN PEGAR",
   "ESTIVA INCORRECTA","LPN ENVIADO","LPN IMPRESO","LPN INVERTIDO","LPN NO CORRESPONDE",
@@ -157,12 +173,23 @@ function loadData(){
   }
   const cbName = 'resCb_' + Date.now();
   window[cbName] = function(data){
-    allRecords = data.records || [];
-    populateFilters();
-    applyFilters();
-    document.getElementById('lastUpdate').textContent = "Actualizado " + new Date().toLocaleTimeString('es-CL');
     delete window[cbName];
     script.remove();
+    if(data && data.error){
+      document.getElementById('lastUpdate').textContent = "Error del servidor";
+      document.getElementById('tbody').innerHTML = '<tr><td colspan="8" style="text-align:center;color:#C62828;">El servidor respondió con un error: ' + String(data.error).replace(/</g,'&lt;') + '</td></tr>';
+      return;
+    }
+    try{
+      allRecords = Array.isArray(data && data.records) ? data.records : [];
+      populateFilters();
+      applyFilters();
+      document.getElementById('lastUpdate').textContent = "Actualizado " + new Date().toLocaleTimeString('es-CL');
+    }catch(err){
+      console.error(err);
+      document.getElementById('lastUpdate').textContent = "Error al mostrar datos";
+      document.getElementById('tbody').innerHTML = '<tr><td colspan="8" style="text-align:center;color:#C62828;">No se pudieron mostrar los datos: ' + String(err && err.message || err).replace(/</g,'&lt;') + '</td></tr>';
+    }
   };
   const script = document.createElement('script');
   script.src = GAS_URL + '?action=resumen&callback=' + cbName;
@@ -203,7 +230,8 @@ function applyFilters(){
     if(turno && r.turno !== turno) return false;
     if(area && r.area !== area) return false;
     if(fechaDesde || fechaHasta){
-      const d = new Date(r.timestamp).toISOString().slice(0,10);
+      const d = fechaDe(r);
+      if(!d) return false;
       if(fechaDesde && d < fechaDesde) return false;
       if(fechaHasta && d > fechaHasta) return false;
     }
@@ -224,7 +252,6 @@ function renderTable(records){
   }
 
   tbody.innerHTML = records.map(r=>{
-    const d = new Date(r.timestamp);
     const packerBadge = r.packer
       ? `<span class="badge badge-packer">${r.packer}</span>`
       : `<span class="badge badge-nomatch">Sin match</span>`;
@@ -232,7 +259,7 @@ function renderTable(records){
       ? `<span class="badge" style="background:#FFF3E0;color:#E67E00;">Andenes</span>`
       : `<span class="badge" style="background:#E3F2FD;color:#0058A3;">Aduana</span>`;
     return `<tr>
-      <td>${d.toLocaleString('es-CL')}</td>
+      <td>${fechaHoraTxt(r)}</td>
       <td><strong>${r.OLPN||'-'}</strong></td>
       <td><span class="badge badge-err">${r.tipoError||'-'}</span></td>
       <td>${r.sku||'-'}</td>
@@ -323,14 +350,14 @@ function renderCharts(records){
 // ============ EXPORTAR CSV ============
 function exportCSV(){
   if(allRecords.length===0){ alert("No hay registros para exportar"); return; }
-  const headers = ["OLPN","tipoError","sku","cantidad","turno","area","timestamp","packer"];
+  const headers = ["OLPN","tipoError","sku","cantidad","turno","area","timestamp","fechaFiltro","packer"];
   const rows = allRecords.map(r => headers.map(h => `"${(r[h]??'').toString().replace(/"/g,'""')}"`).join(","));
   const csv = headers.join(",") + "\n" + rows.join("\n");
   const blob = new Blob([csv], {type:'text/csv;charset=utf-8;'});
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
-  a.download = `resumen_incidencias_aduana_${new Date().toISOString().slice(0,10)}.csv`;
+  a.download = `resumen_incidencias_aduana_${fechaHoy()}.csv`;
   a.click();
 }
 
